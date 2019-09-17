@@ -10,16 +10,15 @@ import pandas as pd
 from sklearn.model_selection import cross_val_score
 import xgboost as xgb
 from sklearn.ensemble import RandomForestClassifier as RFC, GradientBoostingClassifier as GBC
-from sklearn.linear_model import LogisticRegressionCV as LRCV, LogisticRegression as LR
-import seaborn as sns
-import matplotlib.pyplot as plt
+from sklearn.linear_model import LogisticRegression as LR
 from sklearn.preprocessing import StandardScaler as SS
-#import copy
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix as cm, accuracy_score as acc, auc
 from sklearn.feature_selection import RFE
-from helper_funcs import rf_feature_importances
 import numpy as np 
+import seaborn as sns
+
+#Setting Seeds for reproducibility reasons
 np.random.seed(2)
 from tensorflow import set_random_seed
 set_random_seed(2)
@@ -27,20 +26,18 @@ from hyperopt import fmin, hp, tpe
 
 data = pd.read_csv('diabetes.csv')
 targets = data.loc[:, 'Outcome']
-#data = data.iloc[:, :-1]
 
-#Enseble for feature selection: RF (features); RF+RFE; LR; XGBOOST; GradB
-#from sklearn.manifold import TSNE
+#Enseble for feature selection (via RFE): RF; LR; XGBOOST; GradB
 #1. TSNE - Visualization mostly
-#tsne = TSNE()
-#tsne_features = tsne.fit_transform(data)
-#data['tsne_2d_one'] = tsne_features[:, 0]
-#data['tsne_2d_two'] = tsne_features[:, 1]
-#sns.scatterplot(x='tsne_2d_one', y='tsne_2d_two', data=data, hue='Outcome') 
-#data = data.iloc[:, :-3]
+tsne = TSNE()
+tsne_features = tsne.fit_transform(data)
+data['tsne_2d_one'] = tsne_features[:, 0]
+data['tsne_2d_two'] = tsne_features[:, 1]
+sns.scatterplot(x='tsne_2d_one', y='tsne_2d_two', data=data, hue='Outcome') 
+data = data.iloc[:, :-3]
 
-#2. Dimension reduction: RFE For Trees is more conservative than feature imps
-data = data.iloc[:, :-1] #COMMENT IT OUT IF RUNNING TSNE DUE TO CONFLICT
+#2. Dimension reduction: RFE For Trees is more conservative than feature importances
+#data = data.iloc[:, :-1] #COMMENT IT OUT IF RUNNING TSNE DUE TO CONFLICT, else use that
 ss = SS()
 
 #data[data.columns] = ss.fit_transform(data[data.columns]) # 1st try w/out scale
@@ -54,31 +51,6 @@ logit = LR(solver='lbfgs', max_iter=300 ,random_state=42)
 rfe = RFE(estimator=logit, n_features_to_select=4, verbose=1)
 rfe.fit(X_train, y_train)
 logit_mask = rfe.support_
-#print(dict(zip(X_train.columns, rfe.ranking_)))  #visual inspection, low=best
-
-## Print the features that are not eliminated
-#print(X_train.columns[rfe.support_])  #dim reduc, where the [] is the mask
-#
-## Calculates the test set accuracy
-#accur = acc(y_test, rfe.predict(X_test))
-#print("{0:.1%} accuracy on test set.".format(accur)) 
-#print('*'*10)
-
-#logitCV = LRCV(penalty='l1',solver='liblinear',cv=5,random_state=42)
-#logitCV.fit(X_train, y_train)
-#score = acc(y_test, logitCV.predict(X_test)); print('LogCV Acc: {}'.format(score))
-
-#forest.fit(X_train, y_train)
-## Print the importances per feature
-#print(dict(zip(X_train.columns, forest.feature_importances_.round(2))))
-#
-#accur = acc(y_test,forest.predict(X_test))
-## Print accuracy
-#print("{0:.1%} accuracy on test set.".format(accur))
-#
-#rf_mask = forest.feature_importances_.round(2) >= 0.1
-#rf_feature_importances(X_train, forest.feature_importances_)
-
 
 rfe = RFE(estimator=forest, n_features_to_select=4, verbose=1)
 rfe.fit(X_train, y_train)
@@ -101,7 +73,7 @@ meta_mask = votes >= 3
 data_reduced = data.loc[:, meta_mask]
 print(data_reduced.columns)
 
-#Modelling with Reduced dataset
+#Modelling with Reduced dataset with XGB and basic Hyperopt tuning
 X_train, X_test, y_train, y_test = train_test_split(data_reduced, targets, test_size=0.15)
 
 
