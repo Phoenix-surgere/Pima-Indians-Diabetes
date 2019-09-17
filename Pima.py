@@ -91,11 +91,13 @@ def objective(params):
         **params
     )
     
-    score = cross_val_score(clf, X_train, y_train, scoring='accuracy', 
+    best_score = cross_val_score(clf, X_train, y_train, scoring='accuracy', 
                             cv=10).mean()
-    print("Acc {:.3f} params {}".format(score, params))
-    return score
-
+    print("Acc {:.3f} params {}".format(best_score, params))
+    #The score function should return the loss (1-score)
+    # since the optimize function looks for the minimum - Hyperopt peculiarity, need to remember that!
+    loss = 1 - best_score
+    return loss
 space = {
     'max_depth': hp.quniform('max_depth', 2, 8, 1),
     'colsample_bytree': hp.uniform('colsample_bytree', 0.3, 1.0),
