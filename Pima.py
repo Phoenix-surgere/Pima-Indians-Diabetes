@@ -13,14 +13,14 @@ from sklearn.ensemble import RandomForestClassifier as RFC, GradientBoostingClas
 from sklearn.linear_model import LogisticRegression as LR
 import seaborn as sns
 import matplotlib.pyplot as plt
-#from sklearn.preprocessing import StandardScaler as SS
 from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix as cm, accuracy_score as acc
 from sklearn.feature_selection import RFE
 import copy
-#from helper_funcs import rf_feature_importances
 import numpy as np 
+
+#Reproducibility seeding
 np.random.seed(2)
 from tensorflow import set_random_seed
 set_random_seed(2)
@@ -30,7 +30,6 @@ from hyperopt import fmin, hp, tpe
 data = pd.read_csv('diabetes.csv')
 targets = data.loc[:, 'Outcome']
 
-#Enseble for feature selection: RF; LR; XGBOOST; GradB; All w/ RFE
 #1. TSNE - Visualization mostly
 tsne_data = copy.deepcopy(data)
 def tsne_visual(dataset):
@@ -43,13 +42,13 @@ def tsne_visual(dataset):
     return dataset
 tsne_data = tsne_visual(tsne_data)
 plt.show()
-#2. Dimension reduction: RFE For Trees is more conservative than feature imps
+
+#2. Dimension reduction with various models: RF; LR; XGBOOST; GradB; All w/ RFE as it is more conservative
 data = data.iloc[:, :-1] 
-#ss = SS()
-#data[data.columns] = ss.fit_transform(data[data.columns]) # 1st try w/out scale
 
 X_train, X_test, y_train, y_test = train_test_split(data, targets, test_size=0.15)
 
+#Instantiating all models here with some basic values
 forest = RFC(n_estimators=250, random_state=42)
 gbc = GBC(n_estimators=250, random_state=42)
 xgbc = xgb.XGBClassifier(objective='reg:logistic', n_estimators=250, seed=42)
@@ -72,8 +71,6 @@ def rfe_best_features(model, data, rfe):
     rfe_order.rename_axis(model_name,inplace=True)
     print('\n', rfe_order)
     
-## Print the features that are not eliminated
-#print(X_train.columns[rfe.support_])  #dim reduc, where the [] is the mask
 
 logit_mask = model_reduce(logit, 4, X_train, y_train, verbose=0)
 rf_mask = model_reduce(forest, 4, X_train, y_train, verbose=0)
@@ -89,7 +86,7 @@ print(data_reduced.columns)
 
 #Modelling with Reduced dataset
 X_train, X_test, y_train, y_test = train_test_split(data_reduced, targets, test_size=0.15)
-"""
+
 space = {
     'max_depth': hp.quniform('max_depth', 2, 8, 1),
     'colsample_bytree': hp.uniform('colsample_bytree', 0.3, 1.0),
@@ -123,6 +120,7 @@ best = fmin(fn=objective,
             algo=tpe.suggest,
             max_evals=20)
 
+#Instantiating XGBoost with best hypers found by HyperOpt
 best_clf = xgb.XGBClassifier(
         objective='reg:logistic',
         n_estimators=250,
@@ -132,8 +130,9 @@ best_clf = xgb.XGBClassifier(
         colsample_bytree= 0.8959046946141733,
         gamma= 0.40750850415009043,
         max_depth= 2)
+
+#Exploring various Classification metrics and graphs
 from plot_confusion_matrix import plot_matrix
-#from sklearn.metrics import precision_recall_fscore_support as prf
 from sklearn.metrics import roc_curve,roc_auc_score, f1_score #classification_report as report,
 from sklearn.metrics import average_precision_score as aps, precision_recall_curve as prc
 best_clf.fit(X_train, y_train)
@@ -141,7 +140,6 @@ accuracy = acc(y_test, best_clf.predict(X_test))
 confMatrix = cm(y_test, best_clf.predict(X_test))
 cm_plot_labels = ['Healthy', 'Diabetic']
 plot_matrix(confMatrix, cm_plot_labels, title='Confusion Matrix',normalize=True)
-#report(y_test, best_clf.predict(X_test) )
 plt.show()
 
 probs = best_clf.predict_proba(X_test) #default threshold is 0.5
@@ -160,6 +158,7 @@ plt.xlabel('False Positive Rate (1 - Specificity)')
 plt.ylabel('True Positive Rate (Sensitivity)')
 plt.grid(True)
 plt.show()
+
 #Recall-precision curve => Best for less balanced data
 precision, recall, thresholds = prc(y_test, probs)
 plt.plot(recall, precision)
@@ -168,4 +167,3 @@ plt.title('Precision-Recall Curve')
 plt.xlabel('Recall'); plt.ylabel('Precision')
 plt.grid(True)
 plt.show()
-"""
