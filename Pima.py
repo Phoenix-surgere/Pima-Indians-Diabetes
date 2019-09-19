@@ -127,9 +127,9 @@ best_clf = xgb.XGBClassifier(
         learning_rate=0.05,
         seed=42,
         n_jobs=2,
-        colsample_bytree= 0.8959046946141733,
-        gamma= 0.40750850415009043,
-        max_depth= 2)
+        colsample_bytree= best['colsample_bytree'],
+        gamma= best['gamma'],
+        max_depth= int(best['max_depth']))
 
 #Exploring various Classification metrics and graphs
 from plot_confusion_matrix import plot_matrix
